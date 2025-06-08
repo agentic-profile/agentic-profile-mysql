@@ -1,2 +1,3 @@
-# agentic-profile-mysql
-Simple MySQL helpers
+# Agentic Profile MySQL Helpers
+
+Simple MySQL helpers.
