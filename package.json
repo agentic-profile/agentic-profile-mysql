@@ -1,6 +1,6 @@
 {
   "name": "@agentic-profile/mysql",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Simple MySQL helpers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/agentic-profile/agentic-profile-mysql#readme",
   "dependencies": {
-    "mysql2": "^3.14.0"
+    "mysql2": "^3.15.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
@@ -45,5 +45,5 @@
     "tsup": "^8.4.0",
     "typescript": "^5.8.2"
   },
-  "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912"
+  "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c"
 }

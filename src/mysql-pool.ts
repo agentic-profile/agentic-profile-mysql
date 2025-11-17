@@ -5,7 +5,10 @@ export function createPool(): Pool {
         MYSQL_HOSTNAME: host,
         MYSQL_DATABASE: database,
         MYSQL_PASSWORD: password,
-        MYSQL_USER: user
+        MYSQL_USER: user,
+        MYSQL_MAX_IDLE: maxIdle = 2,
+        MYSQL_CONNECTION_LIMIT: connectionLimit = 20,
+        MYSQL_IDLE_TIMEOUT: idleTimeout = 10000
     } = process.env;
 
     if( !host )
@@ -18,22 +21,70 @@ export function createPool(): Pool {
         console.error( "ERROR: process.env missing MYSQL_DATABASE" );
 
     var options = {
-        connectionLimit : 10,   // TODO is there a better number?
         host,
         user,
         database, 
         port     : resolvePort(),
         timezone : '+00:00',
         charset  : 'utf8mb4',
-        password : ''
+        password : '',
+        connectionLimit: Number(connectionLimit),
+        maxIdle: Number(maxIdle),
+        idleTimeout: Number(idleTimeout)
     };
 
     console.log( new Date(), 'Creating MySQL2 pool with', JSON.stringify(options,null,4));
     options.password = password!;
 
-    return mysql.createPool(options);
+    const pool = mysql.createPool(options);
+    
+    // Set max listeners to prevent warnings
+    pool.setMaxListeners(50);
+        
+    pool.on('connection', (connection) => {
+        // Set max listeners on individual connections
+        connection.setMaxListeners(20);
+
+        logConnectionStatus( pool, 'connection' );
+
+        connection.on('error', (err) => {
+            console.error('MySQL connection error:', err);
+        });
+    });
+
+    pool.on('acquire', function (connection) {
+        logConnectionStatus( pool, `acquire ${connection.threadId}` );
+        //console.log('Connection %d acquired', connection.threadId);
+    });
+
+    pool.on('enqueue', function () {
+        logConnectionStatus( pool, 'enqueue' );
+        //console.log('Waiting for available connection slot');
+    });
+
+    pool.on('release', function (connection) {
+        logConnectionStatus( pool, `release ${connection.threadId}` );
+        //console.log('Connection %d released', connection.threadId);
+    });
+
+    return pool;
 }
 
 function resolvePort() {
     return parseInt(process.env.MYSQL_PORT || '3306');
+}
+
+const MYSQL_LOGGING = Boolean(process.env.MYSQL_LOGGING);
+
+function logConnectionStatus( pool: Pool, message: string ) {
+
+    if( !MYSQL_LOGGING )
+        return;
+
+    const { _allConnections, _freeConnections, _connectionQueue } = (pool as any)?.pool ?? {};
+    console.log( 'MySQL', message, {
+        allConnections: _allConnections?.length,
+        freeConnections: _freeConnections?.length,
+        connectionQueue: _connectionQueue?.length
+    });
 }

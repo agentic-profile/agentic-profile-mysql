@@ -1,5 +1,5 @@
 import {
-    OkPacket,
+    ResultSetHeader,
     Pool
 } from "mysql2/promise";
 import { createPool } from "./mysql-pool.js";
@@ -13,9 +13,17 @@ export function pool(): Pool {
     return connectionPool;
 }
 
+// Add cleanup function for graceful shutdown
+export async function closePool(): Promise<void> {
+    if( connectionPool ) {
+        await connectionPool.end();
+        connectionPool = undefined as any;
+    }
+}
+
 export async function queryResult( sql: string, params?: any[] ) {
     const [ result ] = await pool().query( sql, params );
-    return result as OkPacket;
+    return result as ResultSetHeader;
 }
 
 export async function queryRows<T>( sql: string, params?: any[] ) {
