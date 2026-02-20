@@ -7,7 +7,13 @@
   "scripts": {
     "prepare": "tsup",
     "build": "tsup",
-    "test": "jest"
+    "test": "jest",
+    "cloud:up": "./aws/cloud-up.sh --stage=staging",
+    "cloud:up:prod": "./aws/cloud-up.sh --stage=prod",
+    "cloud:down": "./aws/cloud-down.sh --stage=staging",
+    "cloud:down:prod": "./aws/cloud-down.sh --stage=prod",
+    "cloud:results": "node aws/write-formation-results.js --stage=staging",
+    "cloud:results:prod": "node aws/write-formation-results.js --stage=prod"
   },
   "exports": {
     "import": "./dist/index.js",

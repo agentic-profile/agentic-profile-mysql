@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: MySQL RDS (db.t4g.micro) using foundation VPC and public subnets (publicly accessible)
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Stack name (e.g. from cloud-up.sh as StackName-STAGE)
+  FoundationVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID from foundation stack (foundation-results.env)
+  PublicSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: First public subnet ID (foundation-results.env) – required for publicly accessible RDS
+  PublicSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Second public subnet ID (foundation-results.env)
+  DBMasterUsername:
+    Type: String
+    Default: admin
+    Description: Master username for the MySQL instance (password is managed by AWS in Secrets Manager)
+  AllowedCidrBlock:
+    Type: String
+    Default: "10.0.0.0/16"
+    Description: CIDR allowed to connect to MySQL (should match your foundation VPC CIDR)
+  AllowedExternalCidrBlock:
+    Type: String
+    Default: ""
+    Description: Optional extra CIDR for external access (e.g. 174.160.65.240/32). Leave empty to skip.
+
+Conditions:
+  HasExternalCidr: !Not [!Equals [!Ref AllowedExternalCidrBlock, ""]]
+
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Public subnets for MySQL RDS (publicly accessible)
+      SubnetIds:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+      Tags:
+        - Key: Name
+          Value: !Sub "${StackName}-db-subnets"
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for MySQL RDS
+      VpcId: !Ref FoundationVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: !Ref AllowedCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Sub "${StackName}-rds-sg"
+
+  RDSExternalIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasExternalCidr
+    Properties:
+      GroupId: !Ref RDSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      CidrIp: !Ref AllowedExternalCidrBlock
+      Description: External client access (AllowedExternalCidrBlock)
+
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: MySQL 8.0 params for this stack
+      Family: mysql8.0
+      Parameters:
+        log_bin_trust_function_creators: "1"
+      Tags:
+        - Key: Name
+          Value: !Sub "${StackName}-db-params"
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub "${StackName}-db"
+      Engine: mysql
+      EngineVersion: "8.0"
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: 20
+      StorageType: gp3
+      MasterUsername: !Ref DBMasterUsername
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBParameterGroupName: !Ref DBParameterGroup
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      PubliclyAccessible: true
+      StorageEncrypted: true
+      BackupRetentionPeriod: 30
+      MultiAZ: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${StackName}-mysql"
+
+Outputs:
+  DBEndpoint:
+    Description: MySQL endpoint hostname
+    Value: !GetAtt DBInstance.Endpoint.Address
+    Export:
+      Name: !Sub "${StackName}-DBEndpoint"
+  DBPort:
+    Description: MySQL port
+    Value: !GetAtt DBInstance.Endpoint.Port
+    Export:
+      Name: !Sub "${StackName}-DBPort"
+  RDSSecurityGroupId:
+    Description: Security group ID of the RDS instance (for app security group rules)
+    Value: !Ref RDSSecurityGroup
+    Export:
+      Name: !Sub "${StackName}-RDSSecurityGroupId"
+  DBMasterSecretArn:
+    Description: Secrets Manager ARN for the RDS master password (retrieve with aws secretsmanager get-secret-value)
+    Value: !GetAtt DBInstance.MasterUserSecret.SecretArn
+    Export:
+      Name: !Sub "${StackName}-DBMasterSecretArn"

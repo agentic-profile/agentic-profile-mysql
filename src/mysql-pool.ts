@@ -42,8 +42,9 @@ export function createPool(): Pool {
     pool.setMaxListeners(50);
         
     pool.on('connection', (connection) => {
-        // Set max listeners on individual connections
-        connection.setMaxListeners(20);
+        // Set max listeners on individual connections to prevent warnings
+        // mysql2 adds internal 'wakeup' listeners that can accumulate
+        connection.setMaxListeners(100);
 
         logConnectionStatus( pool, 'connection' );
 
