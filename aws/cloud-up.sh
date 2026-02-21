@@ -29,3 +29,5 @@ aws cloudformation deploy \
     PublicSubnet2Id="${PublicSubnet2Id}" \
     "${EXTRA_PARAMS[@]}" \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+
+node aws/write-formation-results.js --stage="${STAGE}"  
