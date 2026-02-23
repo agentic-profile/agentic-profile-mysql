@@ -20,15 +20,17 @@ set +a
 PASSWORD=$(aws secretsmanager get-secret-value --secret-id "$DBMasterSecretArn" --query SecretString --output text | jq -r '.password')
 
 # All user databases (exclude system DBs)
-DBS="$(
-  mysql -h "$DBEndpoint" \
-    -P "${DBPort:-3306}" \
-    -u admin \
-    -p"$PASSWORD" \
-    -N -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql','information_schema','performance_schema','sys');" \
-    --ssl-mode=VERIFY_CA \
-    --ssl-ca=./certs/global-bundle.pem \
-)"
+if [[ -z "${DBS:-}" ]]; then
+  DBS="$(
+    mysql -h "$DBEndpoint" \
+      -P "${DBPort:-3306}" \
+      -u admin \
+      -p"$PASSWORD" \
+      -N -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql','information_schema','performance_schema','sys');" \
+      --ssl-mode=VERIFY_CA \
+      --ssl-ca=./certs/global-bundle.pem \
+  )"
+fi
 if [[ -z "${DBS//[$'\r\n']/}" ]]; then
   echo "No user databases found on Aurora." >&2
   exit 1
@@ -38,10 +40,10 @@ mysqldump -h "$DBEndpoint" \
   -P "${DBPort:-3306}" \
   -u admin \
   -p"$PASSWORD" \
-  --single-transaction --routines --triggers --set-gtid-purged=OFF --no-tablespaces \
+  --single-transaction --routines --triggers --set-gtid-purged=OFF --no-tablespaces --hex-blob \
   --ssl-mode=VERIFY_CA \
   --ssl-ca=./certs/global-bundle.pem \
   --databases $DBS \
   > ./tmp/dump-${STAGE}.sql
 
-  echo "Dumped databases: $DBS"
+echo "Dumped databases: $DBS"

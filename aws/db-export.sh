@@ -63,11 +63,13 @@ if [[ -n "$MIGRATE_DB" ]]; then
   echo "Exported database: $MIGRATE_DB"
 else
   # All user databases (exclude system DBs)
-  DBS="$(
-    mysql -h "$AURORA_HOST" -P "$AURORA_PORT" -u "$AURORA_USER" -p"$AURORA_PASS" \
-      -N -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql','information_schema','performance_schema','sys');" \
-      ${AURORA_SSL_ARGS[@]+"${AURORA_SSL_ARGS[@]}"}
-  )"
+  if [[ -z "${DBS:-}" ]]; then
+    DBS="$(
+      mysql -h "$AURORA_HOST" -P "$AURORA_PORT" -u "$AURORA_USER" -p"$AURORA_PASS" \
+        -N -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql','information_schema','performance_schema','sys');" \
+        ${AURORA_SSL_ARGS[@]+"${AURORA_SSL_ARGS[@]}"}
+    )"
+  fi
   if [[ -z "${DBS//[$'\r\n']/}" ]]; then
     echo "No user databases found on Aurora." >&2
     exit 1
