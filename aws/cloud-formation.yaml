@@ -85,7 +85,7 @@ Resources:
       DBInstanceIdentifier: !Sub "${StackName}-db"
       Engine: mysql
       EngineVersion: "8.0"
-      DBInstanceClass: db.t4g.micro
+      DBInstanceClass: db.t4g.medium
       AllocatedStorage: 20
       StorageType: gp3
       MasterUsername: !Ref DBMasterUsername
